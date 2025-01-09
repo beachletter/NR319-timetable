@@ -260,6 +260,12 @@
             return R * c; // Distance in kilometers
         }
 
+        function updateTheme() {
+            const now = new Date();
+            const hours = now.getHours();
+            document.body.classList.toggle('dark-mode', hours >= 19 || hours < 7);
+        }
+
         function determineDirectionByLocation() {
             if (!window.isSecureContext) {
                 console.log("Geolocation is not available: Site needs HTTPS");
@@ -473,6 +479,7 @@
             // Update theme every minute
             setInterval(updateTheme, 60000);
         });
+
         
     </script>
 
