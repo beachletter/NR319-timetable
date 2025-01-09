@@ -321,7 +321,7 @@
         function updateDirectionButtonStyle() {
             const directionButton = document.getElementById('directionToggle');
             if (currentDirection === 'toHKGarden') {
-                directionButton.style.backgroundColor = '#ffcdb2'; // peach color
+                directionButton.style.backgroundColor = '#d43363'; // peach color
             } else {
                 directionButton.style.backgroundColor = ''; // default color
             }
@@ -392,11 +392,8 @@
         }
 
         async function initializeHolidayCalendar() {
-            try {
-                await holidayCalendar.initialize();
-            } catch (error) {
-                console.error('Failed to initialize holiday calendar:', error);
-            }
+            holidayCalendar.loadFromCache();
+            await holidayCalendar.fetchAndParseHolidays();
         }
 
         async function updateSchedule() {
