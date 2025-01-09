@@ -243,96 +243,12 @@
 
         const holidayCalendar = new HolidayCalendar();
 
-        async function initializeHolidayCalendar() {
-            holidayCalendar.loadFromCache();
-            await holidayCalendar.fetchAndParseHolidays();
-        }
-
-        function isPublicHoliday(date) {
-            return holidayCalendar.isHoliday(date);
-        }
-
-        let currentDirection = 'toHKGarden';
-
-        function getScheduleType(date) {
-            if (isPublicHoliday(date)) {
-                return 'sunday';
-            }
-            const day = date.getDay();
-            if (day === 0) return 'sunday';
-            if (day === 6) return 'saturday';
-            return 'weekday';
-        }
-
-        function parseTime(timeStr) {
-            const [hours, minutes] = timeStr.split(':').map(Number);
-            const date = new Date();
-            date.setHours(hours, minutes, 0, 0);
-            return date;
-        }
-
-        function formatTime(date) {
-            return date.toLocaleTimeString('en-US', {
-                hour: '2-digit',
-                minute: '2-digit',
-                hour12: false
-            });
-        }
-
-        function formatBusTime(time) {
-            if (typeof time !== 'string') return time;
-            if (time === 'No more buses today') return time;
-            
-            const hasAsterisk = time.includes('*');
-            const baseTime = time.replace('*', '');
-            return hasAsterisk ? `${baseTime}<span class="asterisk">*</span>` : baseTime;
-        }
-
-        function getLastBusTime(direction, scheduleType) {
-            const times = schedule[direction][scheduleType];
-            return times[times.length - 1];
-        }
-
-        function getTimeDifference(timeStr) {
-            if (timeStr === 'No more buses today' || !timeStr) return '';
-            
-            const now = new Date();
-            const busTime = parseTime(timeStr.replace('*', ''));
-            
-            let diffMinutes = Math.round((busTime - now) / (1000 * 60));
-            
-            if (diffMinutes <= 0) return '';
-            
-            if (diffMinutes >= 60) {
-                const hours = Math.floor(diffMinutes / 60);
-                const minutes = diffMinutes % 60;
-                if (minutes === 0) {
-                    return ` (${hours}hr)`;
-                }
-                return ` (${hours}hr ${minutes}min)`;
-            }
-            
-            return ` (${diffMinutes}min)`;
-        }
-
-        function formatBusTime(time, showTimeDiff = false) {
-            if (typeof time !== 'string') return time;
-            if (time === 'No more buses today') return time;
-            
-            const hasAsterisk = time.includes('*');
-            const baseTime = time.replace('*', '');
-            const timeDiff = showTimeDiff ? getTimeDifference(time) : '';
-            
-            return `${baseTime}${timeDiff}${hasAsterisk ? '<span class="asterisk">*</span>' : ''}`;
-        }
-
         // HK Garden coordinates in decimal format
         const HK_GARDEN_LAT = 22.362611;  // 22°21'45.4"N
         const HK_GARDEN_LON = 114.042944; // 114°02'34.6"E
         const NEARBY_THRESHOLD = 2; // kilometers
 
         function calculateDistance(lat1, lon1, lat2, lon2) {
-            // Haversine formula to calculate distance between two points
             const R = 6371; // Earth's radius in kilometers
             const dLat = (lat2 - lat1) * Math.PI / 180;
             const dLon = (lon2 - lon1) * Math.PI / 180;
@@ -345,6 +261,16 @@
         }
 
         function determineDirectionByLocation() {
+            if (!window.isSecureContext) {
+                console.log("Geolocation is not available: Site needs HTTPS");
+                const legend = document.getElementById('legend');
+                const secureNote = "Note: Automatic location-based direction is only available on HTTPS.";
+                if (legend.innerHTML.indexOf(secureNote) === -1) {
+                    legend.innerHTML += '<br>' + secureNote;
+                }
+                return;
+            }
+
             if ("geolocation" in navigator) {
                 navigator.geolocation.getCurrentPosition(
                     (position) => {
@@ -362,12 +288,12 @@
                             currentDirection = newDirection;
                             document.getElementById('directionToggle').textContent = 
                                 `Currently: ${currentDirection === 'toHKGarden' ? 'MTR → HK Garden' : 'HK Garden → MTR'}`;
+                            updateDirectionButtonStyle();
                             updateSchedule();
                         }
                     },
                     (error) => {
                         console.log("Geolocation error:", error);
-                        // Keep default direction if location access fails
                     },
                     {
                         enableHighAccuracy: true,
@@ -378,14 +304,92 @@
             }
         }
 
-        // Add this to initialize location-based direction
         function initializeSchedule() {
             determineDirectionByLocation();
-            // Update location every 5 minutes
             setInterval(determineDirectionByLocation, 300000);
         }
 
-        let scheduleInitialized = false;
+        function updateDirectionButtonStyle() {
+            const directionButton = document.getElementById('directionToggle');
+            if (currentDirection === 'toHKGarden') {
+                directionButton.style.backgroundColor = '#ffcdb2'; // peach color
+            } else {
+                directionButton.style.backgroundColor = ''; // default color
+            }
+        }
+
+        function parseTime(timeStr) {
+            const [hours, minutes] = timeStr.split(':').map(Number);
+            const now = new Date();
+            return new Date(now.getFullYear(), now.getMonth(), now.getDate(), hours, minutes);
+        }
+
+        function formatTime(date) {
+            return date.toLocaleTimeString('en-US', { 
+                hour: '2-digit', 
+                minute: '2-digit', 
+                hour12: false 
+            });
+        }
+
+        function getTimeDifference(time) {
+            if (!time || time === 'No more buses today' || time === 'No previous buses') {
+                return '';
+            }
+
+            const now = new Date();
+            const busTime = parseTime(time.replace('*', ''));
+            const diffMinutes = Math.round((busTime - now) / (1000 * 60));
+
+            if (diffMinutes < 0) {
+                return ` (${-diffMinutes}m ago)`;
+            } else if (diffMinutes === 0) {
+                return ' (now)';
+            } else {
+                return ` (in ${diffMinutes}m)`;
+            }
+        }
+
+        function formatBusTime(time, isNext) {
+            if (!time || time === 'No more buses today' || time === 'No previous buses') {
+                return time;
+            }
+
+            const timeDiff = isNext ? getTimeDifference(time) : '';
+            const hasAsterisk = time.includes('*');
+            const baseTime = time.replace('*', '');
+            
+            return `${baseTime}${hasAsterisk ? '*' : ''}${timeDiff}`;
+        }
+
+        function getLastBusTime(direction, scheduleType) {
+            const times = schedule[direction][scheduleType];
+            return times[times.length - 1];
+        }
+
+        function isPublicHoliday(date) {
+            return holidayCalendar.isHoliday(date);
+        }
+
+        function getScheduleType(date) {
+            if (isPublicHoliday(date)) {
+                return 'sunday';
+            }
+            
+            const day = date.getDay();
+            if (day === 0) return 'sunday';
+            if (day === 6) return 'saturday';
+            return 'weekday';
+        }
+
+        async function initializeHolidayCalendar() {
+            try {
+                await holidayCalendar.initialize();
+            } catch (error) {
+                console.error('Failed to initialize holiday calendar:', error);
+            }
+        }
+
         async function updateSchedule() {
             if (!scheduleInitialized) {
                 await initializeHolidayCalendar();
@@ -450,20 +454,11 @@
             legend.innerHTML = legendText.join('<br>');
         }
 
-        function updateTheme() {
-            const hour = new Date().getHours();
-            const isDarkMode = hour >= 18 || hour < 6; // Dark mode between 6 PM and 6 AM
-            document.documentElement.setAttribute('data-theme', isDarkMode ? 'dark' : 'light');
-        }
-
-        // Update theme every minute
-        setInterval(updateTheme, 60000);
-        updateTheme();
-
         document.getElementById('directionToggle').addEventListener('click', () => {
             currentDirection = currentDirection === 'toHKGarden' ? 'toMTR' : 'toHKGarden';
             document.getElementById('directionToggle').textContent = 
                 `Currently: ${currentDirection === 'toHKGarden' ? 'MTR → HK Garden' : 'HK Garden → MTR'}`;
+            updateDirectionButtonStyle();
             updateSchedule();
         });
 
@@ -471,6 +466,7 @@
             initializeSchedule();
             updateTheme();
             updateSchedule();
+            updateDirectionButtonStyle();
             
             // Update schedule every minute
             setInterval(updateSchedule, 60000);
