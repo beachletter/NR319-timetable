@@ -341,22 +341,26 @@
             });
         }
 
-        function getTimeDifference(time) {
-            if (!time || time === 'No more buses today' || time === 'No previous buses') {
-                return '';
-            }
-
+        function getTimeDifference(timeStr) {
+            if (timeStr === 'No more buses today' || !timeStr) return '';
+            
             const now = new Date();
-            const busTime = parseTime(time.replace('*', ''));
-            const diffMinutes = Math.round((busTime - now) / (1000 * 60));
-
-            if (diffMinutes < 0) {
-                return ` (${-diffMinutes}m ago)`;
-            } else if (diffMinutes === 0) {
-                return ' (now)';
-            } else {
-                return ` (in ${diffMinutes}m)`;
+            const busTime = parseTime(timeStr.replace('*', ''));
+            
+            let diffMinutes = Math.round((busTime - now) / (1000 * 60));
+            
+            if (diffMinutes <= 0) return '';
+            
+            if (diffMinutes >= 60) {
+                const hours = Math.floor(diffMinutes / 60);
+                const minutes = diffMinutes % 60;
+                if (minutes === 0) {
+                    return ` (${hours}hr)`;
+                }
+                return ` (${hours}hr ${minutes}min)`;
             }
+            
+            return ` (${diffMinutes}min)`;
         }
 
         function formatBusTime(time, isNext) {
