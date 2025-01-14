@@ -3,7 +3,7 @@
 <meta http-equiv="content-type" content="text/html; charset=UTF-8">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NR319 Bus Schedule</title>
+    <title>NR319邨巴時間表</title>
     <style>
         :root[data-theme="light"] {
             --bg-color: #f0f0f0;
@@ -131,27 +131,27 @@
 <body>
     <div class="container">
         <button class="button" id="directionToggle">
-            MTR → HK Garden
+            荃灣地鐵站 → 豪景花園
         </button>
-        <div class="current-time" id="currentTime">Current Time: 00:00 (Weekday)</div>
+        <div class="current-time" id="currentTime">現在時間：00:00 （平日）</div>
         <div class="schedule-card">
-            <div class="label">Last Bus</div>
-            <div class="time past" id="lastBus">No previous buses</div>
+            <div class="label">上一班車</div>
+            <div class="time past" id="lastBus">暫無班次</div>
         </div>
         <div class="schedule-card">
-            <div class="label">Next Bus</div>
+            <div class="label">下一班車</div>
             <div class="time next" id="nextBus">07:10</div>
         </div>
         <div class="schedule-card">
-            <div class="label">Following Buses</div>
+            <div class="label">往後班次</div>
             <div class="time" id="followingBuses">07:20<span class="time-separator">→</span>07:30<span class="time-separator">→</span>07:40</div>
         </div>
         <div class="legend" id="legend">Last bus of the day: 22:00</div>
         <div class="lang-switch">
-            <a href="NR319_tc.html" id="langSwitch">中文版</a> | English
+            中文版 | <a href="NR319.html" id="langSwitch">English</a>
         </div>
         <div class="source-link">
-            <a href="https://hkgarden.hk/%E7%A9%BF%E6%A2%AD%E5%B7%B4%E5%A3%AB-319r-%E8%A1%8C%E8%BB%8A%E6%99%82%E9%96%93%E8%A1%A8/" target="_blank">View Full Schedule</a>
+            <a href="https://hkgarden.hk/%E7%A9%BF%E6%A2%AD%E5%B7%B4%E5%A3%AB-319r-%E8%A1%8C%E8%BB%8A%E6%99%82%E9%96%93%E8%A1%A8/" target="_blank">查看完整時間表</a>
         </div>
     </div>
 
@@ -321,7 +321,7 @@
                         if (newDirection !== currentDirection) {
                             currentDirection = newDirection;
                             elements.directionToggle.textContent = 
-                                `${currentDirection === 'toHKGarden' ? 'MTR → HK Garden' : 'HK Garden → MTR'}`;
+                                `${currentDirection === 'toHKGarden' ? '荃灣地鐵站 → 豪景花園' : '豪景花園 → 荃灣地鐵站'}`;
                             updateDirectionButtonStyle();
                             updateSchedule();
                         }
@@ -457,37 +457,37 @@
                 }
 
                 if (!nextBus) {
-                    nextBus = 'No more buses today';
+                    nextBus = '今日已無班次';
                     followingBuses = [];
                 }
 
-                elements.lastBus.innerHTML = formatBusTime(lastBus || 'No previous buses', false);
+                elements.lastBus.innerHTML = formatBusTime(lastBus || '暫無班次', false);
                 elements.nextBus.innerHTML = formatBusTime(nextBus, true);
 
                 if (followingBuses.length > 0) {
                     const formattedBuses = followingBuses.map(time => formatBusTime(time, false)).join('<span class="time-separator">→</span>');
                     elements.followingBuses.innerHTML = formattedBuses;
                 } else {
-                    elements.followingBuses.innerHTML = 'No more buses today';
+                    elements.followingBuses.innerHTML = '今日已無班次';
                 }
 
                 const scheduleTypes = {
-                    'weekday': 'Weekday',
-                    'saturday': 'Saturday',
-                    'sunday': isPublicHoliday(now) ? 'Sunday & Public Holiday' : 'Sunday'
+                    'weekday': '平日',
+                    'saturday': '星期六',
+                    'sunday': isPublicHoliday(now) ? '星期日及公眾假期' : '星期日'
                 };
 
                 elements.currentTime.textContent = 
-                    `Current Time: ${formatTime(now)} (${scheduleTypes[scheduleType]})`;
+                    `現在時間： ${formatTime(now)} (${scheduleTypes[scheduleType]})`;
 
                 let legendText = [];
                 
                 if (currentDirection === 'toMTR') {
-                    legendText.push('* Bus stops at Blocks 24, 21, 17, 11, and 9 before exit');
+                    legendText.push('* 巴士將於24、21、17、11及9座停站');
                 }
                 
                 const lastBusOfDay = getLastBusTime(currentDirection, scheduleType);
-                legendText.push(`Last bus of the day: ${formatBusTime(lastBusOfDay, false)}`);
+                legendText.push(`尾班車時間： ${formatBusTime(lastBusOfDay, false)}`);
                 
                 elements.legend.innerHTML = legendText.join('<br>');
             } finally {
@@ -498,7 +498,7 @@
         elements.directionToggle.addEventListener('click', () => {
             currentDirection = currentDirection === 'toHKGarden' ? 'toMTR' : 'toHKGarden';
             elements.directionToggle.textContent = 
-                `${currentDirection === 'toHKGarden' ? 'MTR → HK Garden' : 'HK Garden → MTR'}`;
+                `${currentDirection === 'toHKGarden' ? '荃灣地鐵站 → 豪景花園' : '豪景花園 → 荃灣地鐵站'}`;
             updateDirectionButtonStyle();
             updateSchedule();
         });
