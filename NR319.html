@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="dark"><head>
+<html lang="en"><head>
 <meta http-equiv="content-type" content="text/html; charset=UTF-8">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>319R Bus Schedule</title>
+    <title>NR319 Bus Schedule</title>
     <style>
         :root[data-theme="light"] {
             --bg-color: #f0f0f0;
@@ -121,7 +121,7 @@
         <button class="button" id="directionToggle">
             Currently: MTR → HK Garden
         </button>
-        <div class="current-time" id="currentTime">Current Time: 00:53 (Weekday)</div>
+        <div class="current-time" id="currentTime">Current Time: 00:00 (Weekday)</div>
         <div class="schedule-card">
             <div class="label">Last Bus</div>
             <div class="time past" id="lastBus">No previous buses</div>
@@ -141,6 +141,15 @@
     </div>
 
     <script>
+        const elements = {
+            directionToggle: document.getElementById('directionToggle'),
+            currentTime: document.getElementById('currentTime'),
+            lastBus: document.getElementById('lastBus'),
+            nextBus: document.getElementById('nextBus'),
+            followingBuses: document.getElementById('followingBuses'),
+            legend: document.getElementById('legend')
+        };
+
         let currentDirection = 'toHKGarden';
         let scheduleInitialized = false;
 
@@ -266,16 +275,17 @@
         function updateTheme() {
             const now = new Date();
             const hours = now.getHours();
-            document.body.classList.toggle('dark-mode', hours >= 19 || hours < 7);
+            const htmlElement = document.documentElement;
+            // Set theme based on time (dark from 7 PM to 7 AM)
+            htmlElement.setAttribute('data-theme', (hours >= 19 || hours < 7) ? 'dark' : 'light');
         }
 
         function determineDirectionByLocation() {
             if (!window.isSecureContext) {
                 console.log("Geolocation is not available: Site needs HTTPS");
-                const legend = document.getElementById('legend');
                 const secureNote = "Note: Automatic location-based direction is only available on HTTPS.";
-                if (legend.innerHTML.indexOf(secureNote) === -1) {
-                    legend.innerHTML += '<br>' + secureNote;
+                if (elements.legend.innerHTML.indexOf(secureNote) === -1) {
+                    elements.legend.innerHTML += '<br>' + secureNote;
                 }
                 return;
             }
@@ -295,7 +305,7 @@
                         
                         if (newDirection !== currentDirection) {
                             currentDirection = newDirection;
-                            document.getElementById('directionToggle').textContent = 
+                            elements.directionToggle.textContent = 
                                 `Currently: ${currentDirection === 'toHKGarden' ? 'MTR → HK Garden' : 'HK Garden → MTR'}`;
                             updateDirectionButtonStyle();
                             updateSchedule();
@@ -306,8 +316,8 @@
                     },
                     {
                         enableHighAccuracy: true,
-                        timeout: 5000,
-                        maximumAge: 0
+                        timeout: 10000,  
+                        maximumAge: 300000  // Allow 5-minute-old cached positions
                     }
                 );
             }
@@ -319,9 +329,9 @@
         }
 
         function updateDirectionButtonStyle() {
-            const directionButton = document.getElementById('directionToggle');
+            const directionButton = elements.directionToggle;
             if (currentDirection === 'toHKGarden') {
-                directionButton.style.backgroundColor = '#d43363'; // peach color
+                directionButton.style.backgroundColor = '#d43363'; // use contrasting color as a more obvious marking for different routes
             } else {
                 directionButton.style.backgroundColor = ''; // default color
             }
@@ -400,88 +410,100 @@
             await holidayCalendar.fetchAndParseHolidays();
         }
 
+        let isUpdating = false;
         async function updateSchedule() {
-            if (!scheduleInitialized) {
-                await initializeHolidayCalendar();
-                scheduleInitialized = true;
-            }
-
-            const now = new Date();
-            const scheduleType = getScheduleType(now);
-            const times = schedule[currentDirection][scheduleType];
-            
-            let lastBus = null;
-            let nextBus = null;
-            let followingBuses = [];
-
-            const currentTime = now.getTime();
-
-            for (let i = 0; i < times.length; i++) {
-                const busTime = parseTime(times[i].replace('*', ''));
-                if (busTime.getTime() <= currentTime) {
-                    lastBus = times[i];
-                } else {
-                    nextBus = times[i];
-                    followingBuses = times.slice(i + 1, i + 4);
-                    break;
+            if (isUpdating) return;
+            isUpdating = true;
+            try {
+                if (!scheduleInitialized) {
+                    await initializeHolidayCalendar();
+                    scheduleInitialized = true;
                 }
+
+                const now = new Date();
+                const scheduleType = getScheduleType(now);
+                const times = schedule[currentDirection][scheduleType];
+                
+                let lastBus = null;
+                let nextBus = null;
+                let followingBuses = [];
+
+                const currentTime = now.getTime();
+
+                for (let i = 0; i < times.length; i++) {
+                    const busTime = parseTime(times[i].replace('*', ''));
+                    if (busTime.getTime() <= currentTime) {
+                        lastBus = times[i];
+                    } else {
+                        nextBus = times[i];
+                        followingBuses = times.slice(i + 1, i + 4);
+                        break;
+                    }
+                }
+
+                if (!nextBus) {
+                    nextBus = 'No more buses today';
+                    followingBuses = [];
+                }
+
+                elements.lastBus.innerHTML = formatBusTime(lastBus || 'No previous buses', false);
+                elements.nextBus.innerHTML = formatBusTime(nextBus, true);
+
+                if (followingBuses.length > 0) {
+                    const formattedBuses = followingBuses.map(time => formatBusTime(time, false)).join('<span class="time-separator">→</span>');
+                    elements.followingBuses.innerHTML = formattedBuses;
+                } else {
+                    elements.followingBuses.innerHTML = 'No more buses today';
+                }
+
+                const scheduleTypes = {
+                    'weekday': 'Weekday',
+                    'saturday': 'Saturday',
+                    'sunday': isPublicHoliday(now) ? 'Sunday & Public Holiday' : 'Sunday'
+                };
+
+                elements.currentTime.textContent = 
+                    `Current Time: ${formatTime(now)} (${scheduleTypes[scheduleType]})`;
+
+                let legendText = [];
+                
+                if (currentDirection === 'toMTR') {
+                    legendText.push('* Bus stops at Blocks 24, 21, 17, 11, and 9 before exit');
+                }
+                
+                const lastBusOfDay = getLastBusTime(currentDirection, scheduleType);
+                legendText.push(`Last bus of the day: ${formatBusTime(lastBusOfDay, false)}`);
+                
+                elements.legend.innerHTML = legendText.join('<br>');
+            } finally {
+                isUpdating = false;
             }
-
-            if (!nextBus) {
-                nextBus = 'No more buses today';
-                followingBuses = [];
-            }
-
-            document.getElementById('lastBus').innerHTML = formatBusTime(lastBus || 'No previous buses', false);
-            document.getElementById('nextBus').innerHTML = formatBusTime(nextBus, true);
-
-            if (followingBuses.length > 0) {
-                const formattedBuses = followingBuses.map(time => formatBusTime(time, false)).join('<span class="time-separator">→</span>');
-                document.getElementById('followingBuses').innerHTML = formattedBuses;
-            } else {
-                document.getElementById('followingBuses').innerHTML = 'No more buses today';
-            }
-
-            const scheduleTypes = {
-                'weekday': 'Weekday',
-                'saturday': 'Saturday',
-                'sunday': isPublicHoliday(now) ? 'Sunday & Public Holiday' : 'Sunday'
-            };
-
-            document.getElementById('currentTime').textContent = 
-                `Current Time: ${formatTime(now)} (${scheduleTypes[scheduleType]})`;
-
-            const legend = document.getElementById('legend');
-            let legendText = [];
-            
-            if (currentDirection === 'toMTR') {
-                legendText.push('* Bus stops at Blocks 24, 21, 17, 11, and 9 before exit');
-            }
-            
-            const lastBusOfDay = getLastBusTime(currentDirection, scheduleType);
-            legendText.push(`Last bus of the day: ${formatBusTime(lastBusOfDay, false)}`);
-            
-            legend.innerHTML = legendText.join('<br>');
         }
 
-        document.getElementById('directionToggle').addEventListener('click', () => {
+        elements.directionToggle.addEventListener('click', () => {
             currentDirection = currentDirection === 'toHKGarden' ? 'toMTR' : 'toHKGarden';
-            document.getElementById('directionToggle').textContent = 
+            elements.directionToggle.textContent = 
                 `Currently: ${currentDirection === 'toHKGarden' ? 'MTR → HK Garden' : 'HK Garden → MTR'}`;
             updateDirectionButtonStyle();
             updateSchedule();
         });
+
+        let scheduleInterval;
+        let themeInterval;
 
         document.addEventListener('DOMContentLoaded', () => {
             initializeSchedule();
             updateTheme();
             updateSchedule();
             updateDirectionButtonStyle();
-            
-            // Update schedule every minute
-            setInterval(updateSchedule, 60000);
-            // Update theme every minute
-            setInterval(updateTheme, 60000);
+
+            scheduleInterval = setInterval(updateSchedule, 60000);
+            themeInterval = setInterval(updateTheme, 60000);
+        });
+
+        window.addEventListener('unload', () => {
+            clearInterval(scheduleInterval);
+            clearInterval(themeInterval);
         });
 
         
