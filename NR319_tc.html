@@ -367,7 +367,7 @@
         }
 
         function getTimeDifference(timeStr) {
-            if (timeStr === 'No more buses today' || !timeStr) return '';
+            if (timeStr === '已過最後班次' || !timeStr) return '';
             
             const now = new Date();
             const busTime = parseTime(timeStr.replace('*', ''));
@@ -389,7 +389,7 @@
         }
 
         function formatBusTime(time, isNext) {
-            if (!time || time === 'No more buses today' || time === 'No previous buses') {
+            if (!time || time === '已過最後班次' || time === '暫無班次') {
                 return time;
             }
 
@@ -457,7 +457,7 @@
                 }
 
                 if (!nextBus) {
-                    nextBus = '今日已無班次';
+                    nextBus = '已過最後班次';
                     followingBuses = [];
                 }
 
@@ -468,7 +468,7 @@
                     const formattedBuses = followingBuses.map(time => formatBusTime(time, false)).join('<span class="time-separator">→</span>');
                     elements.followingBuses.innerHTML = formattedBuses;
                 } else {
-                    elements.followingBuses.innerHTML = '今日已無班次';
+                    elements.followingBuses.innerHTML = '已過最後班次';
                 }
 
                 const scheduleTypes = {
